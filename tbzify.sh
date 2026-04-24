@@ -1,5 +1,5 @@
 #!/bin/bash
-# Enhanced by Antigravity
+# Enhanced by Antigravity (Version-Aware Sorting)
 # Source: https://github.com/YHangbin/TBZify
 
 git="https://github.com/jetfir3/TBZify"
@@ -71,31 +71,44 @@ if [[ -z "${urlVar+x}" && -z "${versionVar+x}" ]]; then
 elif [[ "${versionVar}" ]]; then
   # 自动识别架构
   [[ $(uname -m) == "arm64" ]] && archVar="arm64" || archVar="intel"
-  echo -e "Target: Version ${yellow}$versionVar${clear} (${yellow}$archVar${clear})"
   
-  # 模糊匹配：寻找以此版本号开头的最新记录
-  urlVar=$(curl -sL "$json_url" | perl -MJSON::PP -e '
-    my ($v, $a) = @ARGV;
+  # 强化版 Perl 逻辑：数字版本号排序
+  # 它会找到以你输入的版本号开头、且补丁号最大的那一个
+  result=$(curl -sL "$json_url" | perl -MJSON::PP -e '
+    my ($v_in, $a_in) = @ARGV;
     my $json = do { local $/; <STDIN> };
     my $data = decode_json($json);
-    # 1. 尝试精确匹配
-    if (exists $data->{$v} && exists $data->{$v}{mac}{$a}) {
-        print $data->{$v}{mac}{$a}{url};
-    } else {
-        # 2. 尝试模糊匹配（按版本号倒排，取最新一个）
-        foreach my $key (sort { $b cmp $a } keys %$data) {
-            if ($key =~ /^\Q$v\E/ && exists $data->{$key}{mac}{$a}) {
-                print $data->{$key}{mac}{$a}{url};
-                last;
+    
+    # 过滤出匹配版本号开头且架构存在的版本
+    my @matches = grep { $_ =~ /^\Q$v_in\E/ && exists $data->{$_}{mac}{$a_in} } keys %$data;
+    
+    if (@matches) {
+        # 按照版本号每一位进行数字排序 (1.2.24.756 > 1.2.24.754)
+        my @sorted = sort {
+            my @va = split(/\./, $a);
+            my @vb = split(/\./, $b);
+            for my $i (0..3) {
+                my $res = ($vb[$i] // 0) <=> ($va[$i] // 0);
+                return $res if $res;
             }
-        }
+            return 0;
+        } @matches;
+        
+        my $best = $sorted[0];
+        print "$best|" . $data->{$best}{mac}{$a_in}{url};
     }
   ' "$versionVar" "$archVar")
 
-  if [[ -z "$urlVar" ]]; then
+  if [[ -z "$result" ]]; then
     echo -e "${red}Error:${clear} No matching version found for ${yellow}$versionVar${clear} ($archVar)." >&2; exit 1
   fi
-  echo -e "Matched URL: ${yellow}$urlVar${clear}"
+  
+  matchedVersion=$(echo "$result" | cut -d'|' -f1)
+  urlVar=$(echo "$result" | cut -d'|' -f2)
+  
+  echo -e "Target: Version ${yellow}$versionVar${clear} ($archVar)"
+  echo -e "Matched Best: ${yellow}$matchedVersion${clear}"
+  echo -e "Download URL: ${yellow}$urlVar${clear}"
 fi
 
 if [[ -z "${noDownload+x}" ]]; then
