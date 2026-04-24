@@ -1,86 +1,89 @@
-<h1 align="center">TBZify</h1>
-<h3 align="center">Download and install TBZs. Block auto-updates. Uninstall everything.</h3>
 
+# TBZify (增强版)
 
-### Usage:
-- Run the following command in Terminal:
+针对 macOS 的 Spotify 桌面客户端管理工具。本项目是 [jetfir3/TBZify](https://github.com/jetfir3/TBZify) 的增强分支。
+
+## 🚀 新功能
+- **架构自动识别**：自动判断当前 Mac 是 Apple Silicon (M1/M2/M3) 还是 Intel 芯片。
+- **集成版本数据库**：深度接入 [LoaderSpot/table](https://github.com/LoaderSpot/table) 的版本映射库。
+- **强化 `-v` 参数**：找回了通过“版本号”直接安装的能力，再也不用手动去翻长长的 `.tbz` 下载地址。
+- **智能模糊匹配**：输入 `1.2.24` 脚本会自动匹配数据库中该版本的最新补丁（例如 `1.2.24.756`）。
+
+## 🛠 使用方法
+
+### 一键安装 (推荐)
+安装指定版本、开启防自动更新、并清理旧数据：
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/YHangbin/TBZify/main/tbzify.sh) --datawipe -v 1.2.24 -bs
 ```
-bash <(curl -sSL https://raw.githubusercontent.com/jetfir3/TBZify/main/tbzify.sh) -v 1
-```
-- script can instead be downloaded/run locally
-- `-v 1` will download/install latest known version
-- replace `1` with full version number* to specify version
-- view options, examples and FAQ below for more
-<sub>
-*as of May 2023, v1.1.58.820 and below is disabled by Spotify</sub>
 
-<details>
-<summary><h3>Options:</h3></summary>
+### 参数说明 (Options)
+- `-v [version]` : 通过版本号安装（支持模糊搜索）。
+- `-u [URL]`     : 通过直接下载链接安装。
+- `-b`           : 屏蔽 Spotify 自动更新。
+- `-s`           : 安装完成后保留安装包。
+- `-p [path]`    : 指定归档文件/下载的存放路径。
+- `-a [path]`    : 设置自定义的 Spotify.app 安装路径。
+- `--datawipe`   : 安装前清理 App 数据（缓存、配置等）。
+- `--uninstall`  : 彻底卸载 Spotify。
+- `-h`           : 显示帮助信息。
 
-| Option | Description |
-| --- | --- |
-| `-a [path]` | set custom path to Spotify.app |  
-| `-b` | block Spotify auto-updates (--blockupdates) |  
-| `-d` | download only, no install (--noinstall) |  
-| `--datawipe` | delete app data only |  
-| `-h` | print options (--help) |
-| `-p [path]` | set archive/download path |
-| `-s` | save archive after script finishes (--save) |
-| `-u [URL]` | URL of archive to download/install |  
-| `--uninstall` | uninstall Spotify, including app data |  
-| `-v [version]` | archive version to download/install |  
-</details>
-<details>
-<summary><h3>Examples:</h3></summary>
+---
 
-**Download TBZ, install client, delete TBZ**
-```
-./tbzify.sh -v 1.2.13.661
-```
-**Download TBZ (via URL), install client, delete TBZ**
-```
-./tbzify.sh -u https://exampleurl.com/file.tbz
-```
-**Install local TBZ archive**
-```
-./tbzify.sh -p /path/to/file.tbz
-```
-**Delete Spotify app data**
-```
-./tbzify.sh --datawipe
-```
-**Uninstall Spotify, including app data**
-```
-./tbzify.sh --uninstall
-```
-**Delete app data, download to `Desktop`, install to `Downloads`, block updates, save TBZ**
-```
-./tbzify.sh --datawipe -v 1.2.13.661 -p $HOME/Desktop -a $HOME/Downloads -bs
-```
-</details>
+### 📖 使用示例 (Examples)
 
-### FAQ:
 
-**Q:** What is a TBZ file?  
-**A:** TBZ is a Bzip2 compressed TAR file. Spotify packages their macOS desktop client updates in this format.
 
-**Q:** Can't I just download the app installer on the Spotify download page?  
-**A:** Absolutely, but the download page only provides the most recent stable version. "Latest isn't always the greatest" and new builds can sometimes have bugs, change/remove features, etc. Installing a different/specific version may then be preferred.
+#### 0. 安装数据库中的最新版本 
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/YHangbin/TBZify/main/tbzify.sh) -v latest -bs
+```
 
-**Q:** Why is a script needed to download or install a TBZ file?  
-**A:** It's not, but handling the archive is not as simple as the usual macOS installation methods.
+#### 1. 安装特定版本并屏蔽自动更新 (最常用)
+输入版本号开头即可，脚本会自动匹配最新补丁并锁定更新文件夹：
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/YHangbin/TBZify/main/tbzify.sh) -v 1.2.24 -bs
+```
 
-**Q:** How can I manually download and install a TBZ instead?  
-**A:** Download a TBZ archive, delete your current `Spotify.app/Contents/` directory (if a previous Spotify.app doesn't exist, create a Spotify.app directory/folder), then extract the contents of the TBZ archive into your `Spotify.app` directory. This can all be done via GUI|browser/Finder or CLI|Terminal. 
+#### 2. 通过指定 URL 安装
+如果你有特定的下载链接，可以使用 `-u` 参数：
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/YHangbin/TBZify/main/tbzify.sh) -u https://example.com/spotify.tbz
+```
 
-**Q:** Where can I find TBZ URLs?  
-**A:** Try [here](https://docs.google.com/spreadsheets/d/1wztO1L4zvNykBRw7X4jxP8pvo11oQjT0O5DvZ_-S4Ok/edit#gid=1071764554)
+#### 3. 安装本地已有的 .tbz 归档
+使用 `-p` 参数指定本地文件路径：
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/YHangbin/TBZify/main/tbzify.sh) -p ~/Downloads/spotify.tbz
+```
 
-**Q:** Why am I getting an "Invalid version/unofficial source detected." error?  
-**A:** This repo only supports downloading from Spotify's official CDN, anything else may fail. If using `-v [version]`, availability is soley based on known versions in examples.txt. If you have the URL of a version not already listed you can use it with `-u [URL]`.
+#### 4. 仅清理 Spotify 应用数据 (不卸载)
+用于修复软件闪退或清除缓存：
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/YHangbin/TBZify/main/tbzify.sh) --datawipe
+```
 
-**Q:** Why isn't Spotify working correctly after upgrading/downgrading?  
-**A:** There may be conflicts with Spotify app data leftover from a previous install. Use `--datawipe` to delete Spotify's app data. Using `--datawipe` paired with `-u [URL]` or `-v [version]` would delete app data and install the specified app version in a single run. Issues related to Spotify bugs and/or computer/OS issues fall outside the scope of this repo but may be solved by installing a different Spotify app version and/or wiping app data.
+#### 5. 彻底卸载 Spotify
+包括删除应用程序和所有关联的缓存、配置：
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/YHangbin/TBZify/main/tbzify.sh) --uninstall
+```
 
-***
+#### 6. 高级组合指令
+清理数据、下载到桌面、安装到下载目录、屏蔽更新并保留安装包：
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/YHangbin/TBZify/main/tbzify.sh) --datawipe -v 1.2.24 -p ~/Desktop -a ~/Downloads -bs
+```
 
+---
+
+## ❓ 常见问题 (FAQ)
+**Q: 什么是 .tbz 文件？**
+A: TBZ 是经过 Bzip2 压缩的 TAR 归档文件。Spotify 官方使用这种格式分发 macOS 客户端更新包。
+
+**Q: 为什么需要这个脚本？**
+A: 因为 Spotify 官方的 `.tbz` 包解压后不是普通的 `.app` 拖拽安装，而是需要替换 `Spotify.app/Contents` 目录，手动操作比较繁琐。且该脚本能一键锁定更新权限，防止版本回升。
+
+## 🔗 致谢
+- 原版脚本：[jetfir3](https://github.com/jetfir3/TBZify)。
+- 版本数据库：[LoaderSpot](https://github.com/LoaderSpot/table)。
