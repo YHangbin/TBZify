@@ -1,5 +1,5 @@
 #!/bin/bash
-# Enhanced by Antigravity (Version-Aware Sorting)
+# Enhanced by Antigravity (Database + Latest Support + Version Sorting)
 # Source: https://github.com/YHangbin/TBZify
 
 git="https://github.com/jetfir3/TBZify"
@@ -12,16 +12,16 @@ yellow="\033[0;33m"
 showHelp () {
   echo -e \
 "Options:
--a [path]    : set custom path to Spotify.app
--b           : block Spotify auto-updates (--blockupdates)
--d           : download only, no install (--noinstall)
---datawipe   : delete app data only
--h           : print this message (--help)
--p [path]    : set archive/download path
--s           : save archive after script finishes (--save)
--u [URL]     : URL of archive to download/install
---uninstall  : uninstall Spotify, including app data
--v [version] : archive version to download/install\n"
+-a [path]           : set custom path to Spotify.app
+-b                  : block Spotify auto-updates (--blockupdates)
+-d                  : download only, no install (--noinstall)
+--datawipe          : delete app data only
+-h                  : print this message (--help)
+-p [path]           : set archive/download path
+-s                  : save archive after script finishes (--save)
+-u [URL]            : URL of archive to download/install
+--uninstall         : uninstall Spotify, including app data
+-v [version|latest] : archive version to download/install\n"
 }
 
 while getopts ':a:bdhsp:u:v:-:' flag; do
@@ -43,7 +43,7 @@ while getopts ':a:bdhsp:u:v:-:' flag; do
     s) saveVar="true" ;;
     p) p="${OPTARG}"; pathVar="${p}" ;;
     u) u="${OPTARG}"; urlVar="${u}" ;;
-    v) [[ "${OPTARG}" =~ ^[1].*$ ]] && { v="${OPTARG}"; versionVar="${v}"; } ;;
+    v) v="${OPTARG}"; versionVar="${v}" ;;
     \?) echo -e "${red}Error:${clear} '-""${OPTARG}""' not supported\n\n$(showHelp)" >&2; exit 1 ;;
     :) echo -e "${red}Error:${clear} '-""${OPTARG}""' requires additional argument\n\n$(showHelp)" >&2; exit 1 ;;
   esac
@@ -72,18 +72,23 @@ elif [[ "${versionVar}" ]]; then
   # 自动识别架构
   [[ $(uname -m) == "arm64" ]] && archVar="arm64" || archVar="intel"
   
-  # 强化版 Perl 逻辑：数字版本号排序
-  # 它会找到以你输入的版本号开头、且补丁号最大的那一个
+  echo -e "Targeting: Version ${yellow}$versionVar${clear} ($archVar)"
+  echo "Checking database..."
+
+  # 使用 perl 解析 JSON 并根据版本号每一位进行排序匹配
   result=$(curl -sL "$json_url" | perl -MJSON::PP -e '
     my ($v_in, $a_in) = @ARGV;
     my $json = do { local $/; <STDIN> };
     my $data = decode_json($json);
     
-    # 过滤出匹配版本号开头且架构存在的版本
-    my @matches = grep { $_ =~ /^\Q$v_in\E/ && exists $data->{$_}{mac}{$a_in} } keys %$data;
+    my @matches;
+    if ($v_in eq "latest") {
+        @matches = grep { exists $data->{$_}{mac}{$a_in} } keys %$data;
+    } else {
+        @matches = grep { $_ =~ /^\Q$v_in\E/ && exists $data->{$_}{mac}{$a_in} } keys %$data;
+    }
     
     if (@matches) {
-        # 按照版本号每一位进行数字排序 (1.2.24.756 > 1.2.24.754)
         my @sorted = sort {
             my @va = split(/\./, $a);
             my @vb = split(/\./, $b);
@@ -106,8 +111,7 @@ elif [[ "${versionVar}" ]]; then
   matchedVersion=$(echo "$result" | cut -d'|' -f1)
   urlVar=$(echo "$result" | cut -d'|' -f2)
   
-  echo -e "Target: Version ${yellow}$versionVar${clear} ($archVar)"
-  echo -e "Matched Best: ${yellow}$matchedVersion${clear}"
+  echo -e "Matched: ${yellow}$matchedVersion${clear}"
   echo -e "Download URL: ${yellow}$urlVar${clear}"
 fi
 
