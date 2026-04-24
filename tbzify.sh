@@ -1,5 +1,5 @@
 #!/bin/bash
-# Modified by Antigravity (Pair Programming with Hangbin)
+# Enhanced by Antigravity
 # Source: https://github.com/YHangbin/TBZify
 
 git="https://github.com/jetfir3/TBZify"
@@ -69,35 +69,44 @@ if [[ -z "${urlVar+x}" && -z "${versionVar+x}" ]]; then
   pathVar="$(echo "${pathVar}" | perl -ne '/(.*)\/.*/ && print "$1"')"
   noDownload="true"
 elif [[ "${versionVar}" ]]; then
-  # 自动识别架构：Apple Silicon 对应 arm64, Intel 对应 intel
-  [[ $(sysctl -n machdep.cpu.brand_string) =~ "Apple" ]] && archVar="arm64" || archVar="intel"
-  echo "Checking version $versionVar ($archVar) from database..."
+  # 自动识别架构
+  [[ $(uname -m) == "arm64" ]] && archVar="arm64" || archVar="intel"
+  echo -e "Target: Version ${yellow}$versionVar${clear} (${yellow}$archVar${clear})"
   
-  # 使用 perl (macOS 自带) 解析 JSON 获取 URL
+  # 模糊匹配：寻找以此版本号开头的最新记录
   urlVar=$(curl -sL "$json_url" | perl -MJSON::PP -e '
     my ($v, $a) = @ARGV;
     my $json = do { local $/; <STDIN> };
     my $data = decode_json($json);
+    # 1. 尝试精确匹配
     if (exists $data->{$v} && exists $data->{$v}{mac}{$a}) {
-      print $data->{$v}{mac}{$a}{url};
+        print $data->{$v}{mac}{$a}{url};
+    } else {
+        # 2. 尝试模糊匹配（按版本号倒排，取最新一个）
+        foreach my $key (sort { $b cmp $a } keys %$data) {
+            if ($key =~ /^\Q$v\E/ && exists $data->{$key}{mac}{$a}) {
+                print $data->{$key}{mac}{$a}{url};
+                last;
+            }
+        }
     }
   ' "$versionVar" "$archVar")
 
   if [[ -z "$urlVar" ]]; then
-    echo -e "${red}Error:${clear} Version $versionVar for $archVar not found in database." >&2; exit 1
+    echo -e "${red}Error:${clear} No matching version found for ${yellow}$versionVar${clear} ($archVar)." >&2; exit 1
   fi
+  echo -e "Matched URL: ${yellow}$urlVar${clear}"
 fi
 
 if [[ -z "${noDownload+x}" ]]; then
-  # 提取文件名
   fileVar=$(echo "${urlVar}" | perl -ne '/\/([^\/]+)$/ && print "$1"')
   [[ -z "${fileVar}" ]] && fileVar="spotify-archive.tbz"
   
   [[ -z "${pathVar+x}" ]] && pathVar="${HOME}/Downloads"
   [[ ! -d "${pathVar}" ]] && mkdir -p "${pathVar}"
   
-  echo -e "Downloading to ${yellow}${pathVar}/${fileVar}${clear}..."
-  curl -q --progress-bar -f -o "${pathVar}/${fileVar}" "$urlVar" || { echo -e "${red}Download failed.${clear} Exiting...\n" >&2; exit 1; }
+  echo -e "Downloading..."
+  curl -q --progress-bar -f -L -o "${pathVar}/${fileVar}" "$urlVar" || { echo -e "${red}Download failed.${clear} Check your network or proxy.\n" >&2; exit 1; }
 fi
 
 if [[ -z "${downloadOnlyVar+x}" ]]; then
@@ -116,6 +125,6 @@ if [[ "${updatesVar}" ]]; then
   [[ -f "${updatesPathVar}/BLOCKED" ]] || { echo "Blocking auto-updates..."; rm -f "${updatesPathVar}/"* 2>/dev/null; touch "${updatesPathVar}/BLOCKED" 2>/dev/null; chflags uchg "${updatesPathVar}"; }
 fi
 
-[[ "${downloadOnlyVar}" || "${saveVar}" ]] || { echo -e "Deleting ${yellow}${pathVar}/${fileVar}${clear}..."; rm -f "${pathVar}/${fileVar}" 2>/dev/null; }
+[[ "${downloadOnlyVar}" || "${saveVar}" ]] || { echo -e "Deleting temporary file..."; rm -f "${pathVar}/${fileVar}" 2>/dev/null; }
 echo -e "Finished!\n"
 exit 0
